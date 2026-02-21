@@ -1,0 +1,31 @@
+IMAGE_NAME ?= xiaoai-plus-toolchain:dev
+PROJECT_ROOT := $(abspath ..)
+
+.PHONY: build build-sherpa-static compile dist shell
+
+build:
+	docker build -t $(IMAGE_NAME) $(CURDIR)
+
+build-sherpa-static:
+	bash $(CURDIR)/build-sherpa-static.sh
+
+compile:
+	@test -f "$(PROJECT_ROOT)/assets/sherpa_onnx_static/include/sherpa-onnx/c-api/cxx-api.h" || \
+		(echo "Static sherpa-onnx not found. Run: make build-sherpa-static" && exit 1)
+	docker run --rm \
+		-v "$(PROJECT_ROOT)":/workspace \
+		-w /workspace \
+		$(IMAGE_NAME) \
+		bash -lc 'SYSROOT=/opt/sysroot cmake -S . -B build-armv7 \
+			-DCMAKE_TOOLCHAIN_FILE=armv7-linux-gnueabihf.cmake \
+			-DSHERPA_ONNX_STATIC_ROOT=/workspace/assets/sherpa_onnx_static && \
+			cmake --build build-armv7 -j$$(nproc) --target xiaoai_plus_speaker'
+
+dist: compile
+	bash $(CURDIR)/package-runtime.sh
+
+shell:
+	docker run --rm -it \
+		-v "$(PROJECT_ROOT)":/workspace \
+		-w /workspace \
+		$(IMAGE_NAME) /bin/bash
