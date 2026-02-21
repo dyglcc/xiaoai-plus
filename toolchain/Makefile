@@ -1,7 +1,7 @@
 IMAGE_NAME ?= xiaoai-plus-toolchain:dev
 PROJECT_ROOT := $(abspath ..)
 
-.PHONY: build build-sherpa-static compile dist shell
+.PHONY: build build-sherpa-static compile
 
 build:
 	docker build -t $(IMAGE_NAME) $(CURDIR)
@@ -20,12 +20,3 @@ compile:
 			-DCMAKE_TOOLCHAIN_FILE=armv7-linux-gnueabihf.cmake \
 			-DSHERPA_ONNX_STATIC_ROOT=/workspace/assets/sherpa_onnx_static && \
 			cmake --build build-armv7 -j$$(nproc) --target xiaoai_plus_speaker'
-
-dist: compile
-	bash $(CURDIR)/package-runtime.sh
-
-shell:
-	docker run --rm -it \
-		-v "$(PROJECT_ROOT)":/workspace \
-		-w /workspace \
-		$(IMAGE_NAME) /bin/bash
