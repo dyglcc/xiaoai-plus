@@ -37,3 +37,25 @@ config.ini
 
 # 系统文件
 .DS_Store
+
+# 通用编译中间产物
+*.d
+*.slo
+*.lo
+*.obj
+*.gch
+*.pch
+*.ilk
+*.pdb
+*.so
+*.dylib
+*.dll
+*.mod
+*.smod
+*.lai
+*.la
+*.lib
+*.exe
+*.out
+*.app
+*.dwo
