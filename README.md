@@ -25,17 +25,40 @@
 
 ## 使用指南
 
-> [!NOTE]
-> 继续下面的操作之前，你需要先在小爱音箱上刷机获得 SSH 权限 [👉 教程]([../../packages/client-rust/README.md](https://github.com/kslr/open-xiaoai/blob/main/docs/flash.md))
 
-### 1. 开通豆包“端到端实时语音大模型”
-开通入口：https://www.volcengine.com/product/realtime-voice-model
+### 1) 为小爱音箱刷机以解锁 SSH 权限
 
-### 2. 部署编译产物
-Releases 下载后把文件放到 /data/xiaoai-plus 里，然后复制 config.ini.example 为 config.ini 填写自己的火山引擎配置
+https://github.com/kslr/open-xiaoai/blob/main/docs/flash.md
 
-### 3. 启动
+### 2) 开通「豆包端到端实时语音大模型」
+
+访问火山引擎官网，开通对应语音模型能力：  
+https://www.volcengine.com/product/realtime-voice-model
+
+### 3) 部署到音箱
+
+1. 前往本项目的 **Releases** 页面，下载与你设备匹配的文件。
+2. 使用以下工具之一将文件上传到音箱的 `/data/xiaoai-plus` 目录：
+   - **SCP 命令：**
+     ```shell
+     scp <local_file> <username>@<device_ip>:/data/xiaoai-plus
+     ```
+   - 或其他 SSH 文件管理工具
+3. 初始化配置文件：
+   - 复制示例配置：
+     ```shell
+     cp config.ini.example config.ini
+     ```
+   - 编辑 `config.ini`，填写你的 **火山引擎** 参数。
+
+---
+
+### 4) 启动程序
+
+通过 SSH 登录音箱，并执行以下命令启动程序：
+
 ```shell
+cd /data/xiaoai-plus
 ./xiaoai_plus_speaker -c config.ini
 ```
 
