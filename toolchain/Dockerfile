@@ -26,9 +26,9 @@ RUN dpkg --add-architecture armhf \
       libwebrtc-audio-processing-dev:armhf \
     && rm -rf /var/lib/apt/lists/*
 
-COPY root.squashfs /tmp/root.squashfs
+COPY root-oh2p.squashfs /tmp/root-oh2p.squashfs
 RUN mkdir -p /opt/sysroot \
-    && unsquashfs -f -d /opt/sysroot /tmp/root.squashfs \
+    && unsquashfs -f -d /opt/sysroot /tmp/root-oh2p.squashfs \
     && mkdir -p /opt/sysroot/usr/include /opt/sysroot/usr/lib \
     && cp -a /usr/include/openssl /opt/sysroot/usr/include/ 2>/dev/null || true \
     && cp -a /usr/include/arm-linux-gnueabihf/openssl /opt/sysroot/usr/include/ 2>/dev/null || true \
@@ -38,7 +38,7 @@ RUN mkdir -p /opt/sysroot \
     && cp -a /usr/lib/arm-linux-gnueabihf/libssl.a /opt/sysroot/usr/lib/ \
     && cp -a /usr/lib/arm-linux-gnueabihf/libcrypto.a /opt/sysroot/usr/lib/ \
     && cp -a /usr/lib/arm-linux-gnueabihf/libwebrtc_audio_processing.a /opt/sysroot/usr/lib/ \
-    && rm -f /tmp/root.squashfs
+    && rm -f /tmp/root-oh2p.squashfs
 
 ENV PKG_CONFIG_ALLOW_CROSS=1
 ENV PKG_CONFIG_SYSROOT_DIR=/opt/sysroot
