@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-latest
+  cancel-in-progress: true
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache sherpa static build outputs
+        uses: actions/cache@v4
+        with:
+          path: |
+            assets/sherpa-onnx-src
+            assets/sherpa_onnx_static
+          key: sherpa-static-${{ runner.os }}-${{ hashFiles('toolchain/build-sherpa-static.sh', 'toolchain/Dockerfile', 'CMakeLists.txt') }}
+
+      - name: Build cross toolchain image
+        run: make -C toolchain build
+
+      - name: Build sherpa-onnx static dependencies
+        run: make -C toolchain build-sherpa-static
+
+      - name: Cross compile armv7 release binary
+        run: make -C toolchain compile
+
+      - name: Package release archive
+        run: bash toolchain/package-release.sh
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-latest
+          path: |
+            dist/release/oh2p.tar.gz
+            dist/release/oh2p.tar.gz.sha256
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: latest
+          name: Latest
+          allowUpdates: true
+          removeArtifacts: true
+          replacesArtifacts: true
+          makeLatest: true
+          prerelease: false
+          artifacts: dist/release/oh2p.tar.gz,dist/release/oh2p.tar.gz.sha256
