@@ -23,7 +23,7 @@
 2. 开通「豆包端到端实时语音大模型」👉 [火山引擎](https://www.volcengine.com/product/realtime-voice-model)
 3. 执行安装脚本（会自动下载并安装最新 release 到 `/data/xiaoai-plus`）
    ```sh
-   curl -sSfL https://raw.githubusercontent.com/kslr/xiaoai-plus/main/install.sh | sh
+   curl -sSfL https://fastly.jsdelivr.net/gh/kslr/xiaoai-plus@main/install.sh | sh
    ```
 4. 更新 config.ini 里的模型配置
 5. **(可选)** 设置自定义关键词
@@ -44,7 +44,7 @@
    ```
 4. 设置开机自启动（下载 `boot.sh` 到 `/data/init.sh`）
    ```sh
-   curl -L -o /data/init.sh https://raw.githubusercontent.com/kslr/xiaoai-plus/main/boot.sh
+   curl -L -o /data/init.sh https://fastly.jsdelivr.net/gh/kslr/xiaoai-plus@main/boot.sh
    chmod +x /data/init.sh
 
    # 重启小爱音箱
