@@ -17,8 +17,8 @@ namespace {
 
 constexpr int kWakeupTimeoutSec = 15;
 constexpr int kWelcomeResponseTimeoutSec = 8;
-constexpr float kKwsThreshold = 0.65f;
-constexpr int kMinTriggerIntervalMs = 1500;
+constexpr float kKwsThreshold = 0.20f;
+constexpr int kMinTriggerIntervalMs = 800;
 
 struct EchoStats {
   double mic_rms{0.0};

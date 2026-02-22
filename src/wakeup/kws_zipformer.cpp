@@ -6,7 +6,7 @@ namespace xiaoai_plus::wakeup {
 
 namespace {
 
-constexpr float kKwsThreshold = 0.65f;
+constexpr float kKwsThreshold = 0.20f;
 
 }  // namespace
 
