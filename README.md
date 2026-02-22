@@ -34,27 +34,31 @@
    ```sh
    curl -sSfL https://raw.githubusercontent.com/kslr/xiaoai-plus/main/install.sh | sh
    ```
+4. 更新 config.ini 里的模型配置
+5. **(可选)** 设置自定义关键词
+   ```shell
+   cat <<EOF > /data/xiaoai-plus/assets/keywords.txt
+   t iān m āo j īng l íng @天猫精灵
+   x iǎo d ù x iǎo d ù @小度小度
+   n ǐ h ǎo x iǎo zh ì @你好小智
+   d òu b āo d òu b āo @豆包豆包
+   d òu b āo t óng x ué @豆包同学
+   d òu b āo t ong x ue @豆包同学
+   d ou b ao t ong x ue @豆包同学
+   EOF
+   ```
+6. 启动程序
+   ```shell
+   /data/xiaoai-plus/xiaoai_plus_speaker -c /data/xiaoai-plus/config.ini
+   ```
 4. 设置开机自启动（下载 `boot.sh` 到 `/data/init.sh`）
    ```sh
    curl -L -o /data/init.sh https://raw.githubusercontent.com/kslr/xiaoai-plus/main/boot.sh
    chmod +x /data/init.sh
-   ```
-5. 编辑配置并手动启动一次验证
-   ```sh
-   cp /data/xiaoai-plus/config.ini.example /data/xiaoai-plus/config.ini
-   vi /data/xiaoai-plus/config.ini
-   /data/xiaoai-plus/xiaoai_plus_speaker -c /data/xiaoai-plus/config.ini
-   ```
-6. 重启设备验证开机自启动
-   ```sh
+
+   # 重启小爱音箱
    reboot
    ```
-
-
-### 自定义关键词
-
-- 编辑 assets/keywords.txt
-- 重新打包并在设备上测试唤醒效果
 
 ## 免责声明
 
