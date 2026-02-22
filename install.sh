@@ -44,7 +44,7 @@ trap 'rm -rf "${TMP_DIR}"' EXIT INT TERM
 
 mkdir -p "${TMP_DIR}" "${APP_DIR}/assets"
 
-echo "正在下载安装包（优先 jsDelivr，显示进度）..."
+echo "正在下载安装包（优先 jsDelivr）..."
 if ! curl -fL --progress-bar "${ARCHIVE_URL}" -o "${ARCHIVE_PATH}"; then
   if [ -z "${ARCHIVE_FALLBACK_URL}" ] || [ "${ARCHIVE_URL}" = "${ARCHIVE_FALLBACK_URL}" ]; then
     echo "错误：下载安装包失败（${ARCHIVE_URL}）" >&2
