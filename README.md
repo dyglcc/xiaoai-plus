@@ -30,10 +30,25 @@
 
 1. 刷机更新小爱音箱补丁固件，开启并 SSH 连接到小爱音箱 👉 [教程](https://github.com/idootop/open-xiaoai/blob/main/docs/flash.md))
 2. 开通「豆包端到端实时语音大模型」👉 [火山引擎]([packages/client-rust/README.md](https://www.volcengine.com/product/realtime-voice-model))
-3. 在小爱音箱上安装程序 
-   1. 把 release 文件上传到音箱的 `/data/xiaoai-plus` 目录
-   3. 复制 config.ini.example 为 config.ini，填写你的 **火山引擎** 参数
-   4. 启动程序 ./xiaoai_plus_speaker -c config.ini
+3. 执行安装脚本（会自动下载并安装最新 release 到 `/data/xiaoai-plus`）
+   ```sh
+   curl -sSfL https://raw.githubusercontent.com/kslr/xiaoai-plus/main/install.sh | sh
+   ```
+4. 设置开机自启动（下载 `boot.sh` 到 `/data/init.sh`）
+   ```sh
+   curl -L -o /data/init.sh https://raw.githubusercontent.com/kslr/xiaoai-plus/main/boot.sh
+   chmod +x /data/init.sh
+   ```
+5. 编辑配置并手动启动一次验证
+   ```sh
+   cp /data/xiaoai-plus/config.ini.example /data/xiaoai-plus/config.ini
+   vi /data/xiaoai-plus/config.ini
+   /data/xiaoai-plus/xiaoai_plus_speaker -c /data/xiaoai-plus/config.ini
+   ```
+6. 重启设备验证开机自启动
+   ```sh
+   reboot
+   ```
 
 
 ### 自定义关键词
