@@ -1,9 +1,11 @@
 [realtime]
 app_id = your_app_id
-access_key = your_access_key
-app_key = your_app_key
-resource_id = volc.speech.dialog
+access_token = your_access_token
+secret_key = your_secret_key
 model = 1.2.1.0
+bot_name = 豆包
+system_role = 你是豆包同学，是小爱音箱上的语音助手。
+speaking_style = 语气自然、友好、简洁。
 
 [wakeup]
 say_hello = 你好呀，今天有什么想聊的吗？

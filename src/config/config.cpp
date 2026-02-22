@@ -130,8 +130,10 @@ void Config::normalize() {
 
 void Config::validate() const {
   if (realtime.app_id.empty()) throw std::runtime_error("realtime.app_id is required");
-  if (realtime.access_key.empty()) throw std::runtime_error("realtime.access_key is required");
-  if (realtime.app_key.empty()) throw std::runtime_error("realtime.app_key is required");
+  if (realtime.access_token.empty()) {
+    throw std::runtime_error("realtime.access_token is required");
+  }
+  if (realtime.secret_key.empty()) throw std::runtime_error("realtime.secret_key is required");
 }
 
 Config load(const std::string& path) {
@@ -142,10 +144,13 @@ Config load(const std::string& path) {
     if (auto it = sections.find("realtime"); it != sections.end()) {
       const auto& kv = it->second;
       cfg.realtime.app_id = GetRequired(kv, "app_id", "realtime.app_id");
-      cfg.realtime.access_key = GetRequired(kv, "access_key", "realtime.access_key");
-      cfg.realtime.app_key = GetRequired(kv, "app_key", "realtime.app_key");
-      SetIfPresent(kv, "resource_id", &cfg.realtime.preset.resource_id);
+      cfg.realtime.access_token =
+          GetRequired(kv, "access_token", "realtime.access_token");
+      cfg.realtime.secret_key = GetRequired(kv, "secret_key", "realtime.secret_key");
       SetIfPresent(kv, "model", &cfg.realtime.preset.model);
+      SetIfPresent(kv, "bot_name", &cfg.realtime.preset.bot_name);
+      SetIfPresent(kv, "system_role", &cfg.realtime.preset.system_role);
+      SetIfPresent(kv, "speaking_style", &cfg.realtime.preset.speaking_style);
     }
 
     if (auto it = sections.find("wakeup"); it != sections.end()) {

@@ -107,8 +107,22 @@ bool Client::StartSession(std::chrono::milliseconds timeout) {
     return std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now);
   };
 
+  nlohmann::json dialog = {
+      {"bot_name", cfg_.realtime.preset.bot_name},
+      {"extra",
+       {{"input_mod", "keep_alive"},
+        {"model", cfg_.realtime.preset.model},
+        {"enable_music", cfg_.realtime.preset.enable_music}}},
+  };
+  if (!cfg_.realtime.preset.system_role.empty()) {
+    dialog["system_role"] = cfg_.realtime.preset.system_role;
+  }
+  if (!cfg_.realtime.preset.speaking_style.empty()) {
+    dialog["speaking_style"] = cfg_.realtime.preset.speaking_style;
+  }
+
   nlohmann::json payload = {
-      {"dialog", {{"extra", {{"input_mod", "keep_alive"}, {"model", cfg_.realtime.preset.model}}}}},
+      {"dialog", std::move(dialog)},
       {"tts", {{"speaker", "zh_female_vv_jupiter_bigtts"},
                {"audio_config", {{"channel", cfg_.audio.channels},
                                     {"format", "pcm_s16le"},
@@ -266,9 +280,9 @@ bool Client::OpenConnection(std::chrono::milliseconds timeout) {
   ws->setUrl(url);
 
   ws->setExtraHeaders({{"X-Api-App-ID", cfg_.realtime.app_id},
-                       {"X-Api-Access-Key", cfg_.realtime.access_key},
+                       {"X-Api-Access-Key", cfg_.realtime.access_token},
                        {"X-Api-Resource-Id", cfg_.realtime.preset.resource_id},
-                       {"X-Api-App-Key", cfg_.realtime.app_key}});
+                       {"X-Api-App-Key", cfg_.realtime.secret_key}});
 
   ix::SocketTLSOptions tls;
   tls.caFile = "NONE";

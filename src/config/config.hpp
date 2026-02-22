@@ -8,12 +8,16 @@ struct RealtimePreset {
   std::string ws_url{"wss://openspeech.bytedance.com/api/v3/realtime/dialogue"};
   std::string resource_id{"volc.speech.dialog"};
   std::string model{"1.2.1.0"};
+  std::string bot_name{"豆包"};
+  std::string system_role{"你是豆包同学，是小爱音箱上的语音助手。"};
+  std::string speaking_style{"语气自然、友好、简洁。"};
+  bool enable_music{true};
 };
 
 struct Realtime {
   std::string app_id;
-  std::string access_key;
-  std::string app_key;
+  std::string access_token;
+  std::string secret_key;
   RealtimePreset preset;
 };
 
