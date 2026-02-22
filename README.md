@@ -3,6 +3,11 @@
 在小爱音箱上获得与豆包近乎一致的端侧实时语音对话体验
 
 
+
+https://github.com/user-attachments/assets/d1b77b5d-8427-432b-bc30-b04bebc51fc9
+
+
+
 ## 支持设备
 
 | 型号 | 设备代号 |
