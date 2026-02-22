@@ -1,12 +1,18 @@
 #include "wakeup/kws_zipformer.hpp"
 
+#include <stdexcept>
+
 #include <sherpa-onnx/c-api/cxx-api.h>
+
+#include "common/log.hpp"
 
 namespace xiaoai_plus::wakeup {
 
 namespace {
 
 constexpr float kKwsThreshold = 0.20f;
+
+const auto kLog = xiaoai_plus::GetLogger("kws");
 
 }  // namespace
 
@@ -30,9 +36,22 @@ struct ZipformerKwsEngine::Impl {
           c.num_trailing_blanks = 0;
           c.max_active_paths = 8;
           c.keywords_file = cfg.keywords_file;
-          return sherpa_onnx::cxx::KeywordSpotter::Create(c);
+          auto s = sherpa_onnx::cxx::KeywordSpotter::Create(c);
+          if (s.Get() == nullptr) {
+            kLog->error("kws model load failed: spotter is null "
+                        "(check model files exist and memory/disk is sufficient)");
+            throw std::runtime_error(
+                "kws model load failed: "
+                "check model files exist and memory/disk is sufficient");
+          }
+          return s;
         }()),
-        stream(spotter.CreateStream()) {}
+        stream(spotter.CreateStream()) {
+    if (stream.Get() == nullptr) {
+      kLog->error("kws model load failed: CreateStream returned null");
+      throw std::runtime_error("kws model load failed: CreateStream returned null");
+    }
+  }
 
   std::optional<KwsHit> Accept(const uint8_t* pcm, size_t size_bytes, int sample_rate,
                                int channels, int bits_per_sample) {
