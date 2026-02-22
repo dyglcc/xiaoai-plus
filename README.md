@@ -21,6 +21,7 @@
 
 1. 刷机更新小爱音箱补丁固件，开启并 SSH 连接到小爱音箱 👉 [教程](https://github.com/idootop/open-xiaoai/blob/main/docs/flash.md)
 2. 开通「豆包端到端实时语音大模型」👉 [火山引擎](https://www.volcengine.com/product/realtime-voice-model)
+
    现在该模型是免费的，登陆后点“豆包端到端实时语音大模型” 下面有配置信息
 4. 执行安装脚本（会自动下载并安装最新 release 到 `/data/xiaoai-plus`）
    ```sh
