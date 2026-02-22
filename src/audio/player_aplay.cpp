@@ -1,9 +1,13 @@
 #include "audio/player.hpp"
 
 #include <chrono>
-#include <cstdio>
+#include <signal.h>
 #include <sstream>
+#include <string>
+#include <sys/wait.h>
 #include <system_error>
+#include <unistd.h>
+#include <vector>
 
 #include <spdlog/spdlog.h>
 
@@ -49,7 +53,7 @@ void AplayPlayer::Interrupt() {
     queue_.clear();
   }
   std::lock_guard<std::mutex> pipe_lock(pipe_mu_);
-  ClosePipeLocked();
+  ClosePipeLocked(true);
 }
 
 void AplayPlayer::SetOnChunkPlayed(std::function<void(const std::vector<uint8_t>&)> cb) {
@@ -58,32 +62,74 @@ void AplayPlayer::SetOnChunkPlayed(std::function<void(const std::vector<uint8_t>
 }
 
 bool AplayPlayer::OpenPipeLocked() {
-  if (pipe_) {
+  if (aplay_fd_ >= 0) {
     return true;
   }
 
-  std::ostringstream cmd;
-  cmd << "aplay --quiet -t raw"
-      << " -D " << cfg_.output_device
-      << " -f S" << cfg_.bits_per_sample << "_LE"
-      << " -r " << cfg_.sample_rate
-      << " -c " << cfg_.channels
-      << " --buffer-size " << cfg_.buffer_size
-      << " --period-size " << cfg_.period_size
-      << " -";
+  std::string fmt = "S" + std::to_string(cfg_.bits_per_sample) + "_LE";
+  std::string rate = std::to_string(cfg_.sample_rate);
+  std::string channels = std::to_string(cfg_.channels);
+  std::string buffer_size = std::to_string(cfg_.buffer_size);
+  std::string period_size = std::to_string(cfg_.period_size);
 
-  pipe_ = popen(cmd.str().c_str(), "w");
-  if (!pipe_) {
-    spdlog::warn("player popen aplay failed");
+  std::vector<char*> argv = {
+      const_cast<char*>("aplay"),
+      const_cast<char*>("--quiet"),
+      const_cast<char*>("-t"),           const_cast<char*>("raw"),
+      const_cast<char*>("-D"),           const_cast<char*>(cfg_.output_device.c_str()),
+      const_cast<char*>("-f"),           const_cast<char*>(fmt.c_str()),
+      const_cast<char*>("-r"),           const_cast<char*>(rate.c_str()),
+      const_cast<char*>("-c"),           const_cast<char*>(channels.c_str()),
+      const_cast<char*>("--buffer-size"), const_cast<char*>(buffer_size.c_str()),
+      const_cast<char*>("--period-size"), const_cast<char*>(period_size.c_str()),
+      const_cast<char*>("-"),
+      nullptr,
+  };
+
+  int pipefd[2];
+  if (pipe(pipefd) != 0) {
+    spdlog::warn("player pipe() failed");
     return false;
   }
+
+  pid_t pid = fork();
+  if (pid < 0) {
+    close(pipefd[0]);
+    close(pipefd[1]);
+    spdlog::warn("player fork() failed");
+    return false;
+  }
+
+  if (pid == 0) {
+    // child: wire read-end to stdin, exec aplay
+    close(pipefd[1]);
+    if (dup2(pipefd[0], STDIN_FILENO) < 0) { _exit(1); }
+    close(pipefd[0]);
+    execvp("aplay", argv.data());
+    _exit(1);
+  }
+
+  // parent
+  close(pipefd[0]);
+  aplay_pid_ = pid;
+  aplay_fd_ = pipefd[1];
   return true;
 }
 
-void AplayPlayer::ClosePipeLocked() {
-  if (pipe_) {
-    pclose(pipe_);
-    pipe_ = nullptr;
+void AplayPlayer::ClosePipeLocked(bool kill_now) {
+  const pid_t pid = aplay_pid_;
+  const int fd = aplay_fd_;
+  aplay_pid_ = -1;
+  aplay_fd_ = -1;
+
+  if (pid > 0 && kill_now) {
+    kill(pid, SIGKILL);
+  }
+  if (fd >= 0) {
+    close(fd);
+  }
+  if (pid > 0) {
+    waitpid(pid, nullptr, 0);
   }
 }
 
@@ -103,7 +149,7 @@ void AplayPlayer::WriteLoop() {
       if (timed_out && queue_.empty()) {
         lock.unlock();
         std::lock_guard<std::mutex> pipe_lock(pipe_mu_);
-        ClosePipeLocked();
+        ClosePipeLocked(false);
         continue;
       }
       chunk = std::move(queue_.front());
@@ -120,10 +166,11 @@ void AplayPlayer::WriteLoop() {
       if (!OpenPipeLocked()) {
         continue;
       }
-      size_t written = fwrite(chunk.data(), 1, chunk.size(), pipe_);
-      if (written < chunk.size() || fflush(pipe_) != 0) {
-        spdlog::warn("player write failed (written={}/{})", written, chunk.size());
-        ClosePipeLocked();
+      const ssize_t written = write(aplay_fd_, chunk.data(), chunk.size());
+      if (written < 0 || static_cast<size_t>(written) < chunk.size()) {
+        spdlog::warn("player write failed (written={}/{})",
+                     written < 0 ? 0 : written, chunk.size());
+        ClosePipeLocked(false);
       } else {
         write_ok = true;
       }
@@ -141,7 +188,6 @@ void AplayPlayer::WriteLoop() {
       cb(chunk);
     }
   }
-
 }
 
 void AplayPlayer::Close() {
@@ -157,7 +203,7 @@ void AplayPlayer::Close() {
 
   {
     std::lock_guard<std::mutex> pipe_lock(pipe_mu_);
-    ClosePipeLocked();
+    ClosePipeLocked(true);
   }
 
   std::lock_guard<std::mutex> lock(mu_);

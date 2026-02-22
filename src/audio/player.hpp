@@ -4,9 +4,9 @@
 #include <condition_variable>
 #include <cstdint>
 #include <deque>
-#include <cstdio>
 #include <functional>
 #include <mutex>
+#include <sys/types.h>
 #include <thread>
 #include <vector>
 
@@ -28,7 +28,7 @@ class AplayPlayer {
 
  private:
   bool OpenPipeLocked();
-  void ClosePipeLocked();
+  void ClosePipeLocked(bool kill_now);
   void WriteLoop();
 
   config::Audio cfg_;
@@ -43,7 +43,8 @@ class AplayPlayer {
 
   std::atomic<bool> running_{false};
   std::mutex pipe_mu_;
-  FILE* pipe_{nullptr};
+  int aplay_fd_{-1};
+  pid_t aplay_pid_{-1};
   std::thread thread_;
 };
 
