@@ -5,7 +5,9 @@ set -eu
 # curl -sSfL https://raw.githubusercontent.com/kslr/xiaoai-plus/main/install.sh | sh
 
 APP_DIR="${APP_DIR:-/data/xiaoai-plus}"
-ARCHIVE_URL="${ARCHIVE_URL:-https://github.com/kslr/xiaoai-plus/releases/latest/download/oh2p.tar.gz}"
+JSDELIVR_ARCHIVE_URL="${JSDELIVR_ARCHIVE_URL:-https://fastly.jsdelivr.net/gh/kslr/xiaoai-plus@cdn/oh2p.tar.gz}"
+ARCHIVE_URL="${ARCHIVE_URL:-${JSDELIVR_ARCHIVE_URL}}"
+ARCHIVE_FALLBACK_URL="${ARCHIVE_FALLBACK_URL:-https://github.com/kslr/xiaoai-plus/releases/latest/download/oh2p.tar.gz}"
 MIN_SPACE_MB="${MIN_SPACE_MB:-100}"
 CHECK_DIR="${APP_DIR}"
 while [ ! -d "${CHECK_DIR}" ]; do
@@ -42,8 +44,16 @@ trap 'rm -rf "${TMP_DIR}"' EXIT INT TERM
 
 mkdir -p "${TMP_DIR}" "${APP_DIR}/assets"
 
-echo "正在下载安装包..."
-curl -sSfL "${ARCHIVE_URL}" -o "${ARCHIVE_PATH}"
+echo "正在下载安装包（优先 jsDelivr，显示进度）..."
+if ! curl -fL --progress-bar "${ARCHIVE_URL}" -o "${ARCHIVE_PATH}"; then
+  if [ -z "${ARCHIVE_FALLBACK_URL}" ] || [ "${ARCHIVE_URL}" = "${ARCHIVE_FALLBACK_URL}" ]; then
+    echo "错误：下载安装包失败（${ARCHIVE_URL}）" >&2
+    exit 1
+  fi
+  echo "主下载源失败，回退到 GitHub Release..." >&2
+  rm -f "${ARCHIVE_PATH}"
+  curl -fL --progress-bar "${ARCHIVE_FALLBACK_URL}" -o "${ARCHIVE_PATH}"
+fi
 
 echo "正在解压安装包..."
 tar -xzf "${ARCHIVE_PATH}" -C "${TMP_DIR}"

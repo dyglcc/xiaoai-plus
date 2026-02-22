@@ -70,3 +70,24 @@ jobs:
           makeLatest: true
           prerelease: false
           artifacts: dist/release/oh2p.tar.gz,dist/release/oh2p.tar.gz.sha256
+
+      - name: Publish jsDelivr mirror branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          MIRROR_DIR="$(mktemp -d)"
+          trap 'rm -rf "${MIRROR_DIR}"' EXIT
+
+          cp dist/release/oh2p.tar.gz "${MIRROR_DIR}/oh2p.tar.gz"
+          cp dist/release/oh2p.tar.gz.sha256 "${MIRROR_DIR}/oh2p.tar.gz.sha256"
+
+          cd "${MIRROR_DIR}"
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b cdn
+          git add oh2p.tar.gz oh2p.tar.gz.sha256
+          git commit -m "Update CDN assets from ${GITHUB_SHA}"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin cdn
