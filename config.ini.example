@@ -9,3 +9,7 @@ speaking_style = 语气自然、友好、简洁。
 
 [wakeup]
 say_hello = 你好呀，今天有什么想聊的吗？
+
+[audio]
+# TTS 播放音量增益，1.0 为原始音量，2.0 为两倍音量（软件放大，超出 int16 范围会自动截断）
+playback_gain = 1.0

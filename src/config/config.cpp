@@ -117,6 +117,14 @@ void SetIfPresent(const std::unordered_map<std::string, std::string>& kv, const 
   }
 }
 
+void SetIfPresent(const std::unordered_map<std::string, std::string>& kv, const std::string& key,
+                  float* out) {
+  auto it = kv.find(key);
+  if (it != kv.end()) {
+    *out = std::stof(it->second);
+  }
+}
+
 }  // namespace
 
 void Config::normalize() {
@@ -156,6 +164,11 @@ Config load(const std::string& path) {
     if (auto it = sections.find("wakeup"); it != sections.end()) {
       const auto& kv = it->second;
       SetIfPresent(kv, "say_hello", &cfg.wakeup.say_hello);
+    }
+
+    if (auto it = sections.find("audio"); it != sections.end()) {
+      const auto& kv = it->second;
+      SetIfPresent(kv, "playback_gain", &cfg.audio.playback_gain);
     }
   }
 

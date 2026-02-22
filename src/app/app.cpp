@@ -70,14 +70,14 @@ void ScalePcmS16InPlace(std::vector<uint8_t>* pcm, float gain) {
   if (!pcm || pcm->empty() || pcm->size() % sizeof(int16_t) != 0) {
     return;
   }
-  const float clamped_gain = std::max(0.0f, std::min(1.0f, gain));
-  if (clamped_gain >= 0.999f) {
+  const float safe_gain = std::max(0.0f, gain);
+  if (safe_gain >= 0.999f && safe_gain <= 1.001f) {
     return;
   }
   auto* samples = reinterpret_cast<int16_t*>(pcm->data());
   const size_t n = pcm->size() / sizeof(int16_t);
   for (size_t i = 0; i < n; ++i) {
-    const float scaled = static_cast<float>(samples[i]) * clamped_gain;
+    const float scaled = static_cast<float>(samples[i]) * safe_gain;
     const int32_t v = static_cast<int32_t>(std::round(scaled));
     samples[i] = static_cast<int16_t>(std::max(-32768, std::min(32767, v)));
   }
@@ -447,7 +447,20 @@ void App::OnAudio(const std::vector<uint8_t>& chunk) {
     std::lock_guard<std::mutex> lock(mu_);
     ++pending_playback_chunks_;
   }
-  if (!player_->Play(chunk)) {
+
+  const float gain = cfg_.audio.playback_gain;
+  const bool need_gain = !(gain >= 0.999f && gain <= 1.001f);
+
+  bool played;
+  if (need_gain) {
+    std::vector<uint8_t> amplified = chunk;
+    ScalePcmS16InPlace(&amplified, gain);
+    played = player_->Play(amplified);
+  } else {
+    played = player_->Play(chunk);
+  }
+
+  if (!played) {
     {
       std::lock_guard<std::mutex> lock(mu_);
       if (pending_playback_chunks_ > 0) {

@@ -29,6 +29,7 @@ struct AudioPreset {
   int bits_per_sample{16};
   int buffer_size{1440};
   int period_size{360};
+  float playback_gain{1.0f};
 };
 using Audio = AudioPreset;
 
