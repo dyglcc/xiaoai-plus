@@ -1,11 +1,5 @@
 # xiaoai-plus
 
-[![CI](https://github.com/kslr/xiaoai-plus/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/xiaoai-plus/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/kslr/xiaoai-plus?include_prereleases)](https://github.com/OWNER/xiaoai-plus/releases)
-[![Downloads](https://img.shields.io/github/downloads/kslr/xiaoai-plus/total)](https://github.com/OWNER/xiaoai-plus/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](#%E8%AE%B8%E5%8F%AF-license)
-[![Stars](https://img.shields.io/github/stars/kslr/xiaoai-plus?style=social)](https://github.com/kslr/xiaoai-plus)
-
 在小爱音箱上获得与豆包近乎一致的端侧实时语音对话体验
 
 
