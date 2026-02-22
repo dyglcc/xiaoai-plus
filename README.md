@@ -20,13 +20,27 @@
 ## 快速开始
 
 1. 刷机更新小爱音箱补丁固件，开启并 SSH 连接到小爱音箱 👉 [教程](https://github.com/idootop/open-xiaoai/blob/main/docs/flash.md)
-2. 开通「豆包端到端实时语音大模型」👉 [火山引擎 免费token](https://www.volcengine.com/product/realtime-voice-model) 
-3. 执行安装脚本（会自动下载并安装最新 release 到 `/data/xiaoai-plus`）
+2. 开通「豆包端到端实时语音大模型」👉 [火山引擎](https://www.volcengine.com/product/realtime-voice-model)
+   现在该模型是免费的，登陆后点“豆包端到端实时语音大模型” 下面有配置信息
+4. 执行安装脚本（会自动下载并安装最新 release 到 `/data/xiaoai-plus`）
    ```sh
    curl -sSfL https://fastly.jsdelivr.net/gh/kslr/xiaoai-plus@main/install.sh | sh
    ```
-4. 更新 config.ini 里的模型配置
-5. **(可选)** 设置自定义关键词
+5. 更新 config.ini 里的配置
+   ```ini
+   [realtime]
+   app_id = your_app_id
+   access_token = your_access_token
+   secret_key = your_secret_key
+   model = 1.2.1.0
+   bot_name = 豆包
+   system_role = 你是豆包同学，是小爱音箱上的语音助手。
+   speaking_style = 语气自然、友好、简洁。
+   
+   [wakeup]
+   say_hello = 你好呀，今天有什么想聊的吗？
+   ```
+6. **(可选)** 设置自定义关键词
    ```shell
    cat <<EOF > /data/xiaoai-plus/assets/keywords.txt
    t iān m āo j īng l íng @天猫精灵
@@ -38,7 +52,7 @@
    d ou b ao t ong x ue @豆包同学
    EOF
    ```
-6. 启动程序
+7. 启动程序
    ```shell
    /data/xiaoai-plus/xiaoai_plus_speaker -c /data/xiaoai-plus/config.ini
    ```
