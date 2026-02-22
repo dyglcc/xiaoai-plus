@@ -4,6 +4,14 @@ on:
   push:
     branches:
       - main
+    paths:
+      - src/**
+      - toolchain/**
+      - CMakeLists.txt
+      - armv7-linux-gnueabihf.cmake
+      - install.sh
+      - boot.sh
+      - .github/workflows/release.yml
   workflow_dispatch:
 
 permissions:
