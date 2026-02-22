@@ -67,9 +67,6 @@ echo "正在安装文件到 ${APP_DIR} ..."
 cp "${SRC_DIR}/xiaoai_plus_speaker" "${APP_DIR}/xiaoai_plus_speaker"
 chmod 0755 "${APP_DIR}/xiaoai_plus_speaker"
 
-cp "${SRC_DIR}/config.ini.example" "${APP_DIR}/config.ini.example"
-chmod 0644 "${APP_DIR}/config.ini.example"
-
 cp "${SRC_DIR}/assets/decoder.onnx" "${APP_DIR}/assets/decoder.onnx"
 cp "${SRC_DIR}/assets/encoder.onnx" "${APP_DIR}/assets/encoder.onnx"
 cp "${SRC_DIR}/assets/joiner.onnx" "${APP_DIR}/assets/joiner.onnx"
@@ -83,7 +80,7 @@ chmod 0644 \
   "${APP_DIR}/assets/tokens.txt"
 
 if [ ! -f "${APP_DIR}/config.ini" ]; then
-  cp "${APP_DIR}/config.ini.example" "${APP_DIR}/config.ini"
+  mv "${SRC_DIR}/config.ini.example" "${APP_DIR}/config.ini"
   chmod 0644 "${APP_DIR}/config.ini"
   echo "已创建配置文件：${APP_DIR}/config.ini"
 fi
