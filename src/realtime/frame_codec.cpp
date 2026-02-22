@@ -28,6 +28,28 @@ uint32_t ReadU32(const std::vector<uint8_t>& data, size_t* offset) {
   return ntohl(be);
 }
 
+int32_t ReadI32(const std::vector<uint8_t>& data, size_t* offset) {
+  return static_cast<int32_t>(ReadU32(data, offset));
+}
+
+bool HasEvent(uint8_t flags) { return (flags & 0x04) == 0x04; }
+
+bool HasSequence(uint8_t flags) {
+  const uint8_t sequence_bits = flags & 0x03;
+  return sequence_bits == 0x01 || sequence_bits == 0x03;
+}
+
+bool is_connect_server_event(EventId event_id) {
+  switch (event_id) {
+    case EventId::kConnectionStarted:
+    case EventId::kConnectionFailed:
+    case EventId::kConnectionFinished:
+      return true;
+    default:
+      return false;
+  }
+}
+
 std::vector<uint8_t> Gunzip(const std::vector<uint8_t>& in) {
   static constexpr size_t kMaxDecompressedSize = 4 * 1024 * 1024;
 
@@ -125,8 +147,18 @@ std::vector<uint8_t> BuildAudioFrame(EventId event_id, const std::string& sessio
 }
 
 Frame DecodeFrame(const std::vector<uint8_t>& data) {
-  if (data.size() < 8) {
+  if (data.size() < 4) {
     throw std::runtime_error("frame too short");
+  }
+
+  const uint8_t header_size_words = data[0] & 0x0F;
+  if (header_size_words == 0) {
+    throw std::runtime_error("frame invalid header size");
+  }
+
+  size_t offset = static_cast<size_t>(header_size_words) * 4;
+  if (offset > data.size()) {
+    throw std::runtime_error("frame truncated header");
   }
 
   const uint8_t b1 = data[1];
@@ -138,24 +170,42 @@ Frame DecodeFrame(const std::vector<uint8_t>& data) {
   frame.serialization = static_cast<Serialization>((b2 >> 4) & 0x0F);
   frame.compression = static_cast<Compression>(b2 & 0x0F);
 
-  size_t offset = 4;
-
-  if (frame.message_type == MessageType::kErrorInfo && frame.flags == 0xF) {
+  if (frame.message_type == MessageType::kErrorInfo) {
     frame.error_code = ReadU32(data, &offset);
   }
 
-  if (frame.flags == 0x4) {
+  if (HasSequence(frame.flags)) {
+    frame.sequence = ReadI32(data, &offset);
+  }
+
+  if (HasEvent(frame.flags)) {
     frame.event_id = static_cast<EventId>(ReadU32(data, &offset));
   }
 
-  if (frame.event_id.has_value() && !is_connect_class_event(*frame.event_id)) {
-    const uint32_t sid_size = ReadU32(data, &offset);
-    if (sid_size > 0) {
-      if (offset + sid_size > data.size()) {
-        throw std::runtime_error("frame missing session id");
+  if (frame.event_id.has_value()) {
+    if (is_connect_server_event(*frame.event_id)) {
+      // connect_id is optional in connect-class server events. Probe first and only consume
+      // when the remaining layout can still hold payload_size + payload.
+      size_t probe = offset;
+      const uint32_t connect_id_size = ReadU32(data, &probe);
+      const size_t remaining_after_size = data.size() - probe;
+      if (remaining_after_size >= static_cast<size_t>(connect_id_size) + sizeof(uint32_t)) {
+        offset = probe;
+        if (connect_id_size > 0) {
+          frame.connect_id =
+              std::string(reinterpret_cast<const char*>(data.data() + offset), connect_id_size);
+          offset += connect_id_size;
+        }
       }
-      frame.session_id = std::string(reinterpret_cast<const char*>(data.data() + offset), sid_size);
-      offset += sid_size;
+    } else if (!is_connect_class_event(*frame.event_id)) {
+      const uint32_t sid_size = ReadU32(data, &offset);
+      if (sid_size > 0) {
+        if (offset + sid_size > data.size()) {
+          throw std::runtime_error("frame missing session id");
+        }
+        frame.session_id = std::string(reinterpret_cast<const char*>(data.data() + offset), sid_size);
+        offset += sid_size;
+      }
     }
   }
 

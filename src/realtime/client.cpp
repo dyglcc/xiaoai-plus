@@ -131,12 +131,33 @@ bool Client::StartSession(std::chrono::milliseconds timeout) {
 
   for (int attempt = 0; attempt < 2 && running_.load(); ++attempt) {
     const auto connect_timeout = remaining_timeout();
-    if (connect_timeout.count() <= 0 || !EnsureConnection(connect_timeout)) {
+    if (connect_timeout.count() <= 0) {
+      spdlog::warn("start session timeout before connection ready");
       return false;
+    }
+    if (!EnsureConnection(connect_timeout)) {
+      spdlog::warn("start session failed: ensure connection failed");
+      return false;
+    }
+
+    {
+      std::lock_guard<std::mutex> lock(control_mu_);
+      control_queue_.erase(
+          std::remove_if(control_queue_.begin(), control_queue_.end(), [](const protocol::Frame& frame) {
+            if (!frame.event_id.has_value()) {
+              return false;
+            }
+            return *frame.event_id == protocol::EventId::kSessionStarted ||
+                   *frame.event_id == protocol::EventId::kSessionFinished ||
+                   *frame.event_id == protocol::EventId::kSessionFailed ||
+                   *frame.event_id == protocol::EventId::kDialogCommonError;
+          }),
+          control_queue_.end());
     }
 
     const std::string sid = GenSessionId();
     if (!SendJsonEvent(protocol::EventId::kStartSession, payload, sid)) {
+      spdlog::warn("start session failed: send start_session event failed");
       CloseConnection(false);
       continue;
     }
@@ -144,16 +165,19 @@ bool Client::StartSession(std::chrono::milliseconds timeout) {
     protocol::Frame frame;
     const auto wait_timeout = remaining_timeout();
     if (wait_timeout.count() <= 0) {
+      spdlog::warn("start session timeout while waiting session response");
       return false;
     }
     if (!WaitControlEvent({protocol::EventId::kSessionStarted, protocol::EventId::kSessionFailed,
                            protocol::EventId::kDialogCommonError},
                           sid, wait_timeout, &frame)) {
+      spdlog::warn("start session failed: no session control event before timeout");
       CloseConnection(false);
       continue;
     }
     if (frame.event_id == protocol::EventId::kSessionFailed ||
         frame.event_id == protocol::EventId::kDialogCommonError) {
+      spdlog::warn("start session rejected by server");
       return false;
     }
 
@@ -282,7 +306,7 @@ bool Client::OpenConnection(std::chrono::milliseconds timeout) {
   ws->setExtraHeaders({{"X-Api-App-ID", cfg_.realtime.app_id},
                        {"X-Api-Access-Key", cfg_.realtime.access_token},
                        {"X-Api-Resource-Id", cfg_.realtime.preset.resource_id},
-                       {"X-Api-App-Key", cfg_.realtime.secret_key}});
+                       {"X-Api-App-Key", "PlgvMymc7f3tQnJ6"}});
 
   ix::SocketTLSOptions tls;
   tls.caFile = "NONE";
@@ -321,11 +345,23 @@ bool Client::OpenConnection(std::chrono::milliseconds timeout) {
       try {
         std::vector<uint8_t> payload(msg->str.begin(), msg->str.end());
         auto frame = protocol::DecodeFrame(payload);
+        if (frame.message_type == protocol::MessageType::kErrorInfo) {
+          spdlog::warn("ws server error frame");
+          protocol::Frame control = frame;
+          if (!control.event_id.has_value()) {
+            control.event_id = protocol::EventId::kDialogCommonError;
+          }
+          std::lock_guard<std::mutex> lock(control_mu_);
+          control_queue_.push_back(std::move(control));
+          control_cv_.notify_all();
+          return;
+        }
         HandleFrame(frame);
 
         if (frame.event_id.has_value()) {
           switch (*frame.event_id) {
             case protocol::EventId::kConnectionStarted:
+            case protocol::EventId::kConnectionFailed:
             case protocol::EventId::kConnectionFinished:
             case protocol::EventId::kSessionStarted:
             case protocol::EventId::kSessionFinished:
@@ -340,8 +376,10 @@ bool Client::OpenConnection(std::chrono::milliseconds timeout) {
               break;
           }
         }
+      } catch (const std::exception& e) {
+        spdlog::warn("ws frame decode failed: {}", e.what());
       } catch (...) {
-        spdlog::warn("ws frame decode failed");
+        spdlog::warn("ws frame decode failed: unknown exception");
       }
     }
   });
@@ -384,12 +422,15 @@ bool Client::OpenConnection(std::chrono::milliseconds timeout) {
 
   protocol::Frame frame;
   const auto wait_timeout = std::min(timeout, std::chrono::milliseconds(8000));
-  if (!WaitControlEvent({protocol::EventId::kConnectionStarted, protocol::EventId::kDialogCommonError},
+  if (!WaitControlEvent({protocol::EventId::kConnectionStarted,
+                         protocol::EventId::kConnectionFailed,
+                         protocol::EventId::kDialogCommonError},
                         std::nullopt, wait_timeout, &frame)) {
     CloseConnection(false);
     return false;
   }
-  if (frame.event_id == protocol::EventId::kDialogCommonError) {
+  if (frame.event_id == protocol::EventId::kConnectionFailed ||
+      frame.event_id == protocol::EventId::kDialogCommonError) {
     CloseConnection(false);
     return false;
   }
@@ -602,8 +643,18 @@ bool Client::WaitControlEvent(const std::vector<protocol::EventId>& targets,
         continue;
       }
       if (session_id.has_value()) {
-        if (!it->session_id.has_value() || *it->session_id != *session_id) {
-          continue;
+        if (it->session_id.has_value()) {
+          if (*it->session_id != *session_id) {
+            continue;
+          }
+        } else {
+          // Some server-side frames may omit session_id.
+          if (*it->event_id != protocol::EventId::kSessionStarted &&
+              *it->event_id != protocol::EventId::kSessionFinished &&
+              *it->event_id != protocol::EventId::kSessionFailed &&
+              *it->event_id != protocol::EventId::kDialogCommonError) {
+            continue;
+          }
         }
       }
       if (out_frame) {

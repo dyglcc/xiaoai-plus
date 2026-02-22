@@ -27,6 +27,7 @@ enum class EventId : uint32_t {
   kFinishConnection = 2,
 
   kConnectionStarted = 50,
+  kConnectionFailed = 51,
   kConnectionFinished = 52,
 
   kStartSession = 100,
@@ -60,6 +61,7 @@ inline bool is_connect_class_event(EventId event_id) {
     case EventId::kStartConnection:
     case EventId::kFinishConnection:
     case EventId::kConnectionStarted:
+    case EventId::kConnectionFailed:
     case EventId::kConnectionFinished:
       return true;
     default:

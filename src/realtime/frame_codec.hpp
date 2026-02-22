@@ -17,7 +17,9 @@ struct Frame {
   Serialization serialization{Serialization::kRaw};
   Compression compression{Compression::kNone};
   std::optional<EventId> event_id;
+  std::optional<int32_t> sequence;
   std::optional<std::string> session_id;
+  std::optional<std::string> connect_id;
   uint32_t payload_size{0};
   std::vector<uint8_t> payload;
   std::optional<uint32_t> error_code;
