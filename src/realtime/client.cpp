@@ -6,11 +6,13 @@
 #include <thread>
 
 #include <nlohmann/json.hpp>
-#include <spdlog/spdlog.h>
+#include "common/log.hpp"
 
 namespace xiaoai_plus::realtime {
 
 namespace {
+
+const auto kLog = xiaoai_plus::GetLogger("realtime");
 
 std::string GenSessionId() {
   const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
@@ -64,7 +66,7 @@ bool Client::Start() {
         auto frame = protocol::BuildAudioFrame(protocol::EventId::kTaskRequest, sid, chunk);
         WriteBinary(frame);
       } catch (...) {
-        spdlog::warn("audio frame send failed");
+        kLog->warn("audio frame send failed");
       }
     }
   });
@@ -132,11 +134,11 @@ bool Client::StartSession(std::chrono::milliseconds timeout) {
   for (int attempt = 0; attempt < 2 && running_.load(); ++attempt) {
     const auto connect_timeout = remaining_timeout();
     if (connect_timeout.count() <= 0) {
-      spdlog::warn("start session timeout before connection ready");
+      kLog->error("start session timeout before connection ready");
       return false;
     }
     if (!EnsureConnection(connect_timeout)) {
-      spdlog::warn("start session failed: ensure connection failed");
+      kLog->error("start session failed: ensure connection failed");
       return false;
     }
 
@@ -157,7 +159,7 @@ bool Client::StartSession(std::chrono::milliseconds timeout) {
 
     const std::string sid = GenSessionId();
     if (!SendJsonEvent(protocol::EventId::kStartSession, payload, sid)) {
-      spdlog::warn("start session failed: send start_session event failed");
+      kLog->error("start session failed: send start_session event failed");
       CloseConnection(false);
       continue;
     }
@@ -165,19 +167,19 @@ bool Client::StartSession(std::chrono::milliseconds timeout) {
     protocol::Frame frame;
     const auto wait_timeout = remaining_timeout();
     if (wait_timeout.count() <= 0) {
-      spdlog::warn("start session timeout while waiting session response");
+      kLog->error("start session timeout while waiting session response");
       return false;
     }
     if (!WaitControlEvent({protocol::EventId::kSessionStarted, protocol::EventId::kSessionFailed,
                            protocol::EventId::kDialogCommonError},
                           sid, wait_timeout, &frame)) {
-      spdlog::warn("start session failed: no session control event before timeout");
+      kLog->error("start session failed: no session control event before timeout");
       CloseConnection(false);
       continue;
     }
     if (frame.event_id == protocol::EventId::kSessionFailed ||
         frame.event_id == protocol::EventId::kDialogCommonError) {
-      spdlog::warn("start session rejected by server");
+      kLog->error("start session rejected by server");
       return false;
     }
 
@@ -185,6 +187,7 @@ bool Client::StartSession(std::chrono::milliseconds timeout) {
       std::lock_guard<std::mutex> lock(conn_mu_);
       session_id_ = sid;
     }
+    kLog->info("session started: sid={}", sid);
     return true;
   }
   return false;
@@ -289,7 +292,7 @@ bool Client::EnsureConnection(std::chrono::milliseconds timeout) {
       backoff = remaining;
     }
     if (backoff.count() > 0) {
-      spdlog::warn("connection attempt {} failed, retrying in {}ms", attempt, backoff.count());
+      kLog->warn("connection attempt {} failed, retrying in {}ms", attempt, backoff.count());
       std::this_thread::sleep_for(backoff);
     }
   }
@@ -299,7 +302,7 @@ bool Client::EnsureConnection(std::chrono::milliseconds timeout) {
 bool Client::OpenConnection(std::chrono::milliseconds timeout) {
   const auto& url = cfg_.realtime.preset.ws_url;
 
-  spdlog::info("connecting to {}", url);
+  kLog->info("connecting to {}", url);
   auto ws = std::make_unique<ix::WebSocket>();
   ws->setUrl(url);
 
@@ -317,13 +320,14 @@ bool Client::OpenConnection(std::chrono::milliseconds timeout) {
       std::lock_guard<std::mutex> lock(conn_mu_);
       ws_connected_ = true;
       conn_cv_.notify_all();
+      kLog->info("connection ready");
       return;
     }
 
     if (msg->type == ix::WebSocketMessageType::Close ||
         msg->type == ix::WebSocketMessageType::Error) {
       if (msg->type == ix::WebSocketMessageType::Error) {
-        spdlog::warn("ws error: {} (retries={}, wait={}ms, http={})",
+        kLog->warn("ws error: {} (retries={}, wait={}ms, http={})",
                      msg->errorInfo.reason, msg->errorInfo.retries,
                      msg->errorInfo.wait_time, msg->errorInfo.http_status);
       }
@@ -346,7 +350,7 @@ bool Client::OpenConnection(std::chrono::milliseconds timeout) {
         std::vector<uint8_t> payload(msg->str.begin(), msg->str.end());
         auto frame = protocol::DecodeFrame(payload);
         if (frame.message_type == protocol::MessageType::kErrorInfo) {
-          spdlog::warn("ws server error frame");
+          kLog->warn("ws server error frame");
           protocol::Frame control = frame;
           if (!control.event_id.has_value()) {
             control.event_id = protocol::EventId::kDialogCommonError;
@@ -377,9 +381,9 @@ bool Client::OpenConnection(std::chrono::milliseconds timeout) {
           }
         }
       } catch (const std::exception& e) {
-        spdlog::warn("ws frame decode failed: {}", e.what());
+        kLog->error("ws frame decode failed: {}", e.what());
       } catch (...) {
-        spdlog::warn("ws frame decode failed: unknown exception");
+        kLog->error("ws frame decode failed: unknown exception");
       }
     }
   });
@@ -458,11 +462,11 @@ void Client::CloseConnection(bool send_finish_event) {
     try {
       ws->stop();
     } catch (const std::system_error& e) {
-      spdlog::warn("ws stop failed with system_error: {}", e.what());
+      kLog->error("ws stop failed with system_error: {}", e.what());
     } catch (const std::exception& e) {
-      spdlog::warn("ws stop failed: {}", e.what());
+      kLog->error("ws stop failed: {}", e.what());
     } catch (...) {
-      spdlog::warn("ws stop failed: unknown exception");
+      kLog->error("ws stop failed: unknown exception");
     }
   }
 
@@ -525,7 +529,9 @@ void Client::HandleAsrResponse(const nlohmann::json& payload) {
       continue;
     }
     if (callbacks_.on_asr_final) {
-      callbacks_.on_asr_final(AsString(item.value("text", "")));
+      const auto text = AsString(item.value("text", ""));
+      kLog->info("asr final: '{}'", text);
+      callbacks_.on_asr_final(text);
     }
   }
 }
@@ -548,6 +554,7 @@ void Client::HandleTtsResponse(const protocol::Frame& frame) {
   }
 
   if (set_speaking && callbacks_.on_set_ai_speaking) {
+    kLog->info("tts started");
     callbacks_.on_set_ai_speaking(true);
   }
   if (callbacks_.on_audio && !frame.payload.empty()) {
@@ -565,6 +572,7 @@ void Client::HandleTtsEnded() {
     }
   }
   if (was_speaking && callbacks_.on_set_ai_speaking) {
+    kLog->info("tts ended");
     callbacks_.on_set_ai_speaking(false);
   }
 }
@@ -572,10 +580,6 @@ void Client::HandleTtsEnded() {
 void Client::HandleChatResponse(const nlohmann::json& payload) {
   if (!payload.is_object()) {
     return;
-  }
-  auto content = AsString(payload.value("content", ""));
-  if (!content.empty()) {
-    spdlog::info("ai: {}", content);
   }
 }
 
@@ -609,7 +613,7 @@ bool Client::SendJsonEvent(protocol::EventId event_id, const nlohmann::json& pay
     frame = protocol::BuildJsonFrame(protocol::MessageType::kFullClientRequest, event_id, payload,
                                      session_id);
   } catch (...) {
-    spdlog::error("json frame build failed");
+    kLog->error("json frame build failed");
     return false;
   }
   return WriteBinary(frame);

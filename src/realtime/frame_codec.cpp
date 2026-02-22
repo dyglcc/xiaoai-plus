@@ -6,11 +6,13 @@
 #include <cstring>
 #include <stdexcept>
 
-#include <spdlog/spdlog.h>
+#include "common/log.hpp"
 
 namespace xiaoai_plus::realtime::protocol {
 
 namespace {
+
+const auto kLog = xiaoai_plus::GetLogger("codec");
 
 void WriteU32(std::vector<uint8_t>* out, uint32_t v) {
   uint32_t be = htonl(v);
@@ -97,7 +99,7 @@ nlohmann::json Frame::JsonPayload() const {
   try {
     return nlohmann::json::parse(payload.begin(), payload.end());
   } catch (...) {
-    spdlog::warn("json payload parse failed");
+    kLog->warn("json payload parse failed");
     return nlohmann::json();
   }
 }

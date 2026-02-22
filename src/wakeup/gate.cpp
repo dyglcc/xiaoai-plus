@@ -1,8 +1,12 @@
 #include "wakeup/gate.hpp"
 
-#include <spdlog/spdlog.h>
+#include "common/log.hpp"
 
 namespace xiaoai_plus::wakeup {
+
+namespace {
+const auto kLog = xiaoai_plus::GetLogger("gate");
+}  // namespace
 
 Gate::Gate(std::chrono::milliseconds timeout, Hooks hooks)
     : timeout_(timeout.count() > 0 ? timeout : std::chrono::seconds(15)), hooks_(std::move(hooks)) {
@@ -22,14 +26,14 @@ bool Gate::TryWakeup(const std::string& keyword) {
   {
     std::lock_guard<std::mutex> lock(mu_);
     if (step_ != Step::kIdle) {
-      spdlog::info("gate reject wakeup: busy");
+      kLog->info("gate reject wakeup: busy");
       return false;
     }
     step_ = Step::kActive;
     RefreshTimeoutLocked();
     on_arm = hooks_.on_arm;
   }
-  spdlog::info("gate to active: {}", reason);
+  kLog->info("gate to active: {}", reason);
   if (on_arm) {
     on_arm(reason);
   }
@@ -62,7 +66,7 @@ void Gate::Disarm(const std::string& reason) {
     ++timeout_epoch_;
     after = hooks_.after_disarm;
   }
-  spdlog::info("gate to idle: {}", reason);
+  kLog->info("gate to idle: {}", reason);
   timeout_cv_.notify_all();
   if (after) {
     after(reason);
@@ -125,7 +129,7 @@ void Gate::TimeoutLoop() {
     ++timeout_epoch_;
     auto after = hooks_.after_disarm;
     lock.unlock();
-    spdlog::info("gate timeout -> idle");
+    kLog->info("gate timeout -> idle");
     if (after) {
       after("timeout");
     }

@@ -7,13 +7,15 @@
 #include <cmath>
 #include <thread>
 
-#include <spdlog/spdlog.h>
+#include "common/log.hpp"
 
 #include "wakeup/kws_zipformer.hpp"
 
 namespace xiaoai_plus::app {
 
 namespace {
+
+const auto kLog = xiaoai_plus::GetLogger("app");
 
 constexpr int kWakeupTimeoutSec = 15;
 constexpr int kWelcomeResponseTimeoutSec = 8;
@@ -168,8 +170,7 @@ App::App(config::Config cfg) : cfg_(std::move(cfg)) {
 App::~App() { Stop(); }
 
 bool App::Run() {
-  spdlog::info(
-      "app start: input={} rate={} ch={} bits={} buffer={} period={} kws_threshold={:.2f}",
+  kLog->info(
       cfg_.audio.input_device, cfg_.audio.sample_rate, cfg_.audio.channels,
       cfg_.audio.bits_per_sample, cfg_.audio.buffer_size, cfg_.audio.period_size,
       kKwsThreshold);
@@ -182,30 +183,30 @@ bool App::Run() {
   running_.store(true);
 
   if (!player_->Start()) {
-    spdlog::error("app start failed: player start");
+    kLog->error("app start failed: player start");
     running_.store(false);
     return false;
   }
   if (!recorder_->Start([this](const std::vector<uint8_t>& chunk) { OnInputAudio(chunk); })) {
-    spdlog::error("app start failed: recorder start");
+    kLog->error("app start failed: recorder start");
     running_.store(false);
     player_->Close();
     return false;
   }
   if (!client_->Start()) {
-    spdlog::error("app start failed: realtime client start");
+    kLog->error("app start failed: realtime client start");
     running_.store(false);
     recorder_->Stop();
     player_->Close();
     return false;
   }
-  spdlog::info("app components started");
+  kLog->info("app components started");
 
   std::thread([]() {
     const int rc =
         std::system("/usr/sbin/tts_play.sh '程序已启动' >/dev/null 2>&1");
     if (rc != 0) {
-      spdlog::warn("startup tts command failed: rc={}", rc);
+      kLog->warn("startup tts command failed: rc={}", rc);
     }
   }).detach();
 
@@ -225,7 +226,7 @@ void App::Stop() {
   if (stopping_.exchange(true)) {
     return;
   }
-  spdlog::info("app stopping");
+  kLog->info("app stopping");
   running_.store(false);
   run_cv_.notify_all();
 
@@ -245,7 +246,7 @@ void App::Stop() {
     std::lock_guard<std::mutex> lock(state_mu_);
     lifecycle_ = Lifecycle::kStopped;
   }
-  spdlog::info("app stopped");
+  kLog->info("app stopped");
 }
 
 Lifecycle App::State() const {
@@ -467,7 +468,7 @@ void App::OnAudio(const std::vector<uint8_t>& chunk) {
         --pending_playback_chunks_;
       }
     }
-    spdlog::warn("player queue full, drop tts chunk: bytes={}", chunk.size());
+    kLog->warn("player queue full, drop tts chunk: bytes={}", chunk.size());
     TryFinalizeFarewell();
   }
 }
@@ -528,7 +529,7 @@ void App::OnUserActivity() {
     return;
   }
 
-  spdlog::info("barge-in detected: interrupt current playback");
+  kLog->info("barge-in detected: interrupt current playback");
   if (gate_) {
     gate_->SetAiSpeaking(false);
   }
@@ -539,7 +540,7 @@ void App::OnSessionClosed(const std::string& reason) {
   if (stopping_.load()) {
     return;
   }
-  spdlog::info("session closed: {}", reason);
+  kLog->info("session closed: {}", reason);
   CancelWelcomeTimer();
   {
     std::lock_guard<std::mutex> lock(mu_);
@@ -565,7 +566,7 @@ void App::OnChatEnded() {
 }
 
 void App::OnArm(const std::string& reason) {
-  spdlog::info("gate armed: {}", reason);
+  kLog->info("gate armed: {}", reason);
   InterruptPlayback();
 
   {
@@ -574,21 +575,21 @@ void App::OnArm(const std::string& reason) {
   }
 
   if (!client_ || !gate_) {
-    spdlog::warn("on_arm skipped: client/gate missing");
+    kLog->error("on_arm skipped: client/gate missing");
     return;
   }
   if (!client_->StartSession(std::chrono::seconds(12))) {
-    spdlog::warn("start session failed");
+    kLog->error("start session failed");
     gate_->Disarm("session_start_failed");
     return;
   }
   if (!client_->SendSayHello()) {
-    spdlog::warn("send say_hello failed");
+    kLog->error("send say_hello failed");
     client_->FinishSession(std::chrono::seconds(2));
     gate_->Disarm("say_hello_failed");
     return;
   }
-  spdlog::info("say_hello sent");
+  kLog->info("say_hello sent");
   StartWelcomeTimer();
 }
 
@@ -637,7 +638,7 @@ void App::CancelWelcomeTimer() {
 }
 
 void App::FinishSessionAndDisarm(const std::string& reason) {
-  spdlog::info("finish session and disarm: {}", reason);
+  kLog->info("finish session and disarm: {}", reason);
   CancelWelcomeTimer();
   InterruptPlayback();
   {
@@ -668,7 +669,7 @@ void App::TryFinalizeFarewell() {
     return;
   }
 
-  spdlog::info("farewell close: playback drained, closing session");
+  kLog->info("farewell close: playback drained, closing session");
   CancelWelcomeTimer();
   if (client_) client_->FinishSession(std::chrono::seconds(4));
   if (gate_) gate_->Disarm("bye");
@@ -696,7 +697,7 @@ void App::InterruptPlayback() {
   }
   const int rc = std::system("mphelper pause");
   if (rc != 0) {
-    spdlog::warn("mphelper pause failed: rc={}", rc);
+    kLog->warn("mphelper pause failed: rc={}", rc);
   }
 }
 

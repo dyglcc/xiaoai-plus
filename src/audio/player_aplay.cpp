@@ -9,9 +9,13 @@
 #include <unistd.h>
 #include <vector>
 
-#include <spdlog/spdlog.h>
+#include "common/log.hpp"
 
 namespace xiaoai_plus::audio {
+
+namespace {
+const auto kLog = xiaoai_plus::GetLogger("player");
+}  // namespace
 
 AplayPlayer::AplayPlayer(config::Audio cfg, int queue_frames)
     : cfg_(std::move(cfg)), queue_frames_(queue_frames > 0 ? queue_frames : 128) {}
@@ -26,10 +30,11 @@ bool AplayPlayer::Start() {
   try {
     thread_ = std::thread([this]() { WriteLoop(); });
   } catch (const std::system_error& e) {
-    spdlog::error("player thread creation failed: {}", e.what());
+    kLog->error("player thread creation failed: {}", e.what());
     running_.store(false);
     return false;
   }
+  kLog->info("player started");
   return true;
 }
 
@@ -88,7 +93,7 @@ bool AplayPlayer::OpenPipeLocked() {
 
   int pipefd[2];
   if (pipe(pipefd) != 0) {
-    spdlog::warn("player pipe() failed");
+    kLog->error("player pipe() failed");
     return false;
   }
 
@@ -96,7 +101,7 @@ bool AplayPlayer::OpenPipeLocked() {
   if (pid < 0) {
     close(pipefd[0]);
     close(pipefd[1]);
-    spdlog::warn("player fork() failed");
+    kLog->error("player fork() failed");
     return false;
   }
 
@@ -168,7 +173,7 @@ void AplayPlayer::WriteLoop() {
       }
       const ssize_t written = write(aplay_fd_, chunk.data(), chunk.size());
       if (written < 0 || static_cast<size_t>(written) < chunk.size()) {
-        spdlog::warn("player write failed (written={}/{})",
+        kLog->warn("player write failed (written={}/{})",
                      written < 0 ? 0 : written, chunk.size());
         ClosePipeLocked(false);
       } else {
@@ -208,6 +213,7 @@ void AplayPlayer::Close() {
 
   std::lock_guard<std::mutex> lock(mu_);
   queue_.clear();
+  kLog->info("player stopped");
 }
 
 }  // namespace xiaoai_plus::audio

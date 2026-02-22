@@ -1,8 +1,12 @@
 #include "wakeup/local_listener.hpp"
 
-#include <spdlog/spdlog.h>
+#include "common/log.hpp"
 
 namespace xiaoai_plus::wakeup {
+
+namespace {
+const auto kLog = xiaoai_plus::GetLogger("kws");
+}  // namespace
 
 LocalListener::LocalListener(Config cfg) : cfg_(std::move(cfg)) {}
 
@@ -20,7 +24,7 @@ void LocalListener::AcceptPcm(const std::vector<uint8_t>& chunk) {
   if (!hit.has_value()) {
     return;
   }
-  spdlog::info("kws hit: keyword='{}'", hit->keyword);
+  kLog->info("kws hit: keyword='{}'", hit->keyword);
 
   const auto now = std::chrono::steady_clock::now();
   {
@@ -32,7 +36,7 @@ void LocalListener::AcceptPcm(const std::vector<uint8_t>& chunk) {
       auto delta =
           std::chrono::duration_cast<std::chrono::milliseconds>(now - last_trigger_).count();
       if (delta < cfg_.min_trigger_interval_ms) {
-        spdlog::info("kws skip by interval: delta={}ms min={}ms", delta,
+        kLog->info("kws skip by interval: delta={}ms min={}ms", delta,
                      cfg_.min_trigger_interval_ms);
         return;
       }
@@ -40,11 +44,11 @@ void LocalListener::AcceptPcm(const std::vector<uint8_t>& chunk) {
   }
 
   if (cfg_.trigger->FireFromText(hit->keyword)) {
-    spdlog::info("kws trigger accepted: keyword='{}'", hit->keyword);
+    kLog->info("kws trigger accepted: keyword='{}'", hit->keyword);
     std::lock_guard<std::mutex> lock(mu_);
     last_trigger_ = now;
   } else {
-    spdlog::info("kws trigger rejected: keyword='{}'", hit->keyword);
+    kLog->info("kws trigger rejected: keyword='{}'", hit->keyword);
   }
 }
 

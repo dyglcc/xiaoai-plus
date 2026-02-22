@@ -10,9 +10,13 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include <spdlog/spdlog.h>
+#include "common/log.hpp"
 
 namespace xiaoai_plus::audio {
+
+namespace {
+const auto kLog = xiaoai_plus::GetLogger("recorder");
+}  // namespace
 
 ArecordRecorder::ArecordRecorder(config::Audio cfg) : cfg_(std::move(cfg)) {}
 
@@ -32,21 +36,20 @@ bool ArecordRecorder::Start(std::function<void(const std::vector<uint8_t>&)> on_
   const int bytes_per_frame = bytes_per_sample * std::max(1, cfg_.channels);
   const int target_chunk = std::max(1, cfg_.buffer_size) * bytes_per_frame;
 
-  spdlog::info(
-      "recorder start: device={} rate={} ch={} bits={} buffer={} period={} chunk={}B",
+  kLog->info(
       cfg_.input_device, cfg_.sample_rate, cfg_.channels, cfg_.bits_per_sample, cfg_.buffer_size,
       cfg_.period_size, target_chunk);
 
   int pipefd[2] = {-1, -1};
   if (pipe(pipefd) != 0) {
-    spdlog::error("recorder pipe create failed: {}", std::strerror(errno));
+    kLog->error("recorder pipe create failed: {}", std::strerror(errno));
     running_.store(false);
     return false;
   }
 
   pid_t pid = fork();
   if (pid < 0) {
-    spdlog::error("recorder fork failed: {}", std::strerror(errno));
+    kLog->error("recorder fork failed: {}", std::strerror(errno));
     close(pipefd[0]);
     close(pipefd[1]);
     running_.store(false);
@@ -72,7 +75,7 @@ bool ArecordRecorder::Start(std::function<void(const std::vector<uint8_t>&)> on_
   try {
     thread_ = std::thread([this, on_chunk = std::move(on_chunk)]() mutable { ReadLoop(on_chunk); });
   } catch (const std::system_error& e) {
-    spdlog::error("recorder thread creation failed: {}", e.what());
+    kLog->error("recorder thread creation failed: {}", e.what());
     kill(static_cast<pid_t>(child_pid_), SIGTERM);
     close(pipe_fd_);
     int status = 0;
@@ -132,7 +135,7 @@ void ArecordRecorder::ReadLoop(std::function<void(const std::vector<uint8_t>&)> 
       break;
     }
     if (errno != EBADF) {
-      spdlog::warn("recorder read error: {}", std::strerror(errno));
+      kLog->error("recorder read error: {}", std::strerror(errno));
     }
     break;
   }
@@ -162,6 +165,7 @@ void ArecordRecorder::Stop() {
     (void)waitpid(static_cast<pid_t>(child_pid_), &status, 0);
     child_pid_ = -1;
   }
+  kLog->info("recorder stopped");
 }
 
 }  // namespace xiaoai_plus::audio

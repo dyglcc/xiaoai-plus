@@ -6,7 +6,7 @@
 #include <string>
 #include <thread>
 
-#include <spdlog/spdlog.h>
+#include "common/log.hpp"
 
 #include "app/app.hpp"
 #include "config/config.hpp"
@@ -29,9 +29,6 @@ int main(int argc, char** argv) {
   }
 
   try {
-    spdlog::set_level(spdlog::level::info);
-    spdlog::flush_on(spdlog::level::info);
-
     auto cfg = xiaoai_plus::config::load(config_path);
     xiaoai_plus::app::App app(cfg);
     g_stop_requested = 0;

@@ -5,7 +5,7 @@
 #include <memory>
 #include <mutex>
 
-#include <spdlog/spdlog.h>
+#include "common/log.hpp"
 #include <webrtc/common.h>
 #include <webrtc/modules/audio_processing/include/audio_processing.h>
 
@@ -13,9 +13,11 @@ namespace xiaoai_plus::dsp {
 
 namespace {
 
+const auto kLog = xiaoai_plus::GetLogger("aec");
+
 void LogInitError(const char* action, int rc) {
   if (rc != 0) {
-    spdlog::warn("aec: {} failed: rc={}", action, rc);
+    kLog->warn("aec: {} failed: rc={}", action, rc);
   }
 }
 
@@ -119,7 +121,7 @@ void AecWebrtc::AnalyzeReverseStream(const uint8_t* pcm, size_t size_bytes) {
   const size_t reverse_available = impl_->reverse_pending.size() - impl_->reverse_read_pos;
   if (reverse_available > max_pending) {
     impl_->reverse_read_pos += (reverse_available - max_pending);
-    spdlog::warn("aec: dropped reverse samples (overflow)");
+        kLog->warn("aec: dropped reverse samples (overflow)");
   }
   while (impl_->reverse_pending.size() - impl_->reverse_read_pos >= frame_samples) {
     const int16_t* frame =
@@ -136,7 +138,7 @@ void AecWebrtc::AnalyzeReverseStream(const uint8_t* pcm, size_t size_bytes) {
     if (rc != 0) {
       ++impl_->reverse_error_count;
       if (impl_->reverse_error_count == 1 || impl_->reverse_error_count % 200 == 0) {
-        spdlog::warn("aec: ProcessReverseStream failed: rc={} count={}", rc,
+        kLog->warn("aec: ProcessReverseStream failed: rc={} count={}", rc,
                      impl_->reverse_error_count);
       }
     }
@@ -163,7 +165,7 @@ std::vector<uint8_t> AecWebrtc::ProcessCaptureStream(const uint8_t* pcm, size_t 
   const size_t capture_available = impl_->capture_pending.size() - impl_->capture_read_pos;
   if (capture_available > max_pending) {
     impl_->capture_read_pos += (capture_available - max_pending);
-    spdlog::warn("aec: dropped capture samples (overflow)");
+        kLog->warn("aec: dropped capture samples (overflow)");
   }
   while (impl_->capture_pending.size() - impl_->capture_read_pos >= frame_samples) {
     const int16_t* frame =
@@ -179,7 +181,7 @@ std::vector<uint8_t> AecWebrtc::ProcessCaptureStream(const uint8_t* pcm, size_t 
     if (delay_rc != 0) {
       ++impl_->delay_error_count;
       if (impl_->delay_error_count == 1 || impl_->delay_error_count % 200 == 0) {
-        spdlog::warn("aec: set_stream_delay_ms failed: rc={} count={}", delay_rc,
+        kLog->warn("aec: set_stream_delay_ms failed: rc={} count={}", delay_rc,
                      impl_->delay_error_count);
       }
     }
@@ -187,7 +189,7 @@ std::vector<uint8_t> AecWebrtc::ProcessCaptureStream(const uint8_t* pcm, size_t 
     if (rc != 0) {
       ++impl_->capture_error_count;
       if (impl_->capture_error_count == 1 || impl_->capture_error_count % 200 == 0) {
-        spdlog::warn("aec: ProcessStream failed: rc={} count={}", rc, impl_->capture_error_count);
+        kLog->warn("aec: ProcessStream failed: rc={} count={}", rc, impl_->capture_error_count);
       }
       impl_->capture_out_i16.insert(impl_->capture_out_i16.end(), frame,
                                     frame + static_cast<long>(frame_samples));
