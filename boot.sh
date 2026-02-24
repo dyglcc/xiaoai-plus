@@ -43,5 +43,5 @@ if [ -n "${PIDS}" ]; then
 fi
 
 cd "${APP_DIR}"
-nohup "${BIN_PATH}" -c "${CFG_PATH}" >>"${LOG_PATH}" 2>&1 &
+"${BIN_PATH}" -c "${CFG_PATH}" >>"${LOG_PATH}" 2>&1 &
 echo "启动完成，日志文件：${LOG_PATH}"
