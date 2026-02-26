@@ -589,7 +589,6 @@ void App::OnArm(const std::string& reason) {
     gate_->Disarm("say_hello_failed");
     return;
   }
-  kLog->info("say_hello sent");
   StartWelcomeTimer();
 }
 

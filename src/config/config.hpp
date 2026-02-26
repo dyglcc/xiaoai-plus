@@ -34,7 +34,7 @@ struct AudioPreset {
 using Audio = AudioPreset;
 
 struct Wakeup {
-  std::string say_hello{"你好呀，今天有什么想聊的吗？"};
+  std::string say_hello{"在"};
   std::string keywords_file{"assets/keywords.txt"};
   std::string tokens_path{"assets/tokens.txt"};
   std::string encoder_path{"assets/encoder.onnx"};

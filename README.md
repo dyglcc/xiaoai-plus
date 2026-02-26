@@ -42,7 +42,7 @@ https://github.com/user-attachments/assets/18e65b6b-2a28-415f-be9a-9d7baf11f7cd
    speaking_style = 语气自然、友好、简洁。
    
    [wakeup]
-   say_hello = 你好呀，今天有什么想聊的吗？
+   say_hello = 在
    ```
 6. **(可选)** 设置自定义关键词
    ```shell
