@@ -1,7 +1,8 @@
 IMAGE_NAME ?= xiaoai-plus-toolchain:dev
 PROJECT_ROOT := $(abspath ..)
+RUNTIME_TEST_IMAGE_NAME := xiaoai-plus-runtime-test:dev
 
-.PHONY: build build-sherpa-static compile
+.PHONY: build build-sherpa-static compile runtime-test-image runtime-smoke-test
 
 build:
 	docker build -t $(IMAGE_NAME) $(CURDIR)
@@ -20,3 +21,13 @@ compile:
 			-DCMAKE_TOOLCHAIN_FILE=armv7-linux-gnueabihf.cmake \
 			-DSHERPA_ONNX_STATIC_ROOT=/workspace/assets/sherpa_onnx_static && \
 			cmake --build build-armv7 -j$$(nproc) --target xiaoai_plus_speaker'
+
+runtime-test-image:
+	docker build -t $(IMAGE_NAME) $(CURDIR)
+	docker build \
+		-t $(RUNTIME_TEST_IMAGE_NAME) \
+		-f $(CURDIR)/runtime-test.Dockerfile \
+		$(CURDIR)
+
+runtime-smoke-test:
+	bash $(CURDIR)/runtime-smoke-test.sh

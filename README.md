@@ -44,17 +44,22 @@ https://github.com/user-attachments/assets/18e65b6b-2a28-415f-be9a-9d7baf11f7cd
    [wakeup]
    say_hello = 在
    ```
-6. **(可选)** 设置自定义关键词
+6. **(可选)** 设置自定义关键词（在项目根目录执行，参考 sherpa 文档：https://k2-fsa.github.io/sherpa/onnx/kws/pretrained_models/index.html#）
    ```shell
-   cat <<EOF > /data/xiaoai-plus/assets/keywords.txt
-   t iān m āo j īng l íng @天猫精灵
-   x iǎo d ù x iǎo d ù @小度小度
-   n ǐ h ǎo x iǎo zh ì @你好小智
-   d òu b āo d òu b āo @豆包豆包
-   d òu b āo t óng x ué @豆包同学
-   d òu b āo t ong x ue @豆包同学
-   d ou b ao t ong x ue @豆包同学
+   # 安装 sherpa-onnx-cli（在开发机执行，不在小爱音箱上执行）
+   python3 -m pip install -U sherpa-onnx click sentencepiece pypinyin
+
+   cat <<'EOF' >assets/keywords_raw.txt
+   豆包同学 @豆包同学
+   小爱同学 @小爱同学
+   LIGHT UP @LIGHT_UP
    EOF
+
+   sherpa-onnx-cli text2token \
+     --tokens assets/tokens.txt \
+     --tokens-type phone+ppinyin \
+     --lexicon assets/en.phone \
+     assets/keywords_raw.txt assets/keywords.txt
    ```
 7. 启动程序
    ```shell
