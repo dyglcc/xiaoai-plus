@@ -88,8 +88,20 @@ void Gate::RefreshTimeoutLocked() {
 
 void Gate::SetAiSpeaking(bool is_speaking) {
   std::lock_guard<std::mutex> lock(mu_);
+  if (is_ai_speaking_ == is_speaking) {
+    return;
+  }
   is_ai_speaking_ = is_speaking;
-  if (is_ai_speaking_ && step_ == Step::kActive) {
+  if (step_ != Step::kActive) {
+    return;
+  }
+
+  if (is_ai_speaking_) {
+    // Pause timeout while AI is speaking.
+    ++timeout_epoch_;
+    timeout_cv_.notify_all();
+  } else {
+    // Resume timeout countdown from now when AI speech ends.
     RefreshTimeoutLocked();
   }
 }
@@ -117,10 +129,18 @@ void Gate::TimeoutLoop() {
       continue;
     }
 
+    if (is_ai_speaking_) {
+      const auto epoch = timeout_epoch_;
+      timeout_cv_.wait(lock, [this, epoch]() {
+        return closed_ || step_ != Step::kActive || timeout_epoch_ != epoch || !is_ai_speaking_;
+      });
+      continue;
+    }
+
     const auto epoch = timeout_epoch_;
     const auto deadline = timeout_deadline_;
     if (timeout_cv_.wait_until(lock, deadline, [this, epoch]() {
-          return closed_ || step_ != Step::kActive || timeout_epoch_ != epoch;
+          return closed_ || step_ != Step::kActive || timeout_epoch_ != epoch || is_ai_speaking_;
         })) {
       continue;
     }
