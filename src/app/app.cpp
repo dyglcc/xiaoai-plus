@@ -137,7 +137,7 @@ App::App(config::Config cfg) : cfg_(std::move(cfg)) {
   gate_ = std::make_unique<wakeup::Gate>(std::chrono::seconds(kWakeupTimeoutSec), hooks);
 
   trigger_ = std::make_unique<wakeup::Trigger>(
-      std::vector<std::string>{"豆包同学"},
+      std::vector<std::string>{"豆包豆包"},
       [this](const std::string& keyword) {
         return gate_->TryWakeup(keyword);
       });
