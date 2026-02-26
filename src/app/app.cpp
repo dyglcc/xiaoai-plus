@@ -20,7 +20,7 @@ namespace {
 
 const auto kLog = xiaoai_plus::GetLogger("app");
 
-constexpr int kWakeupTimeoutSec = 15;
+constexpr int kWakeupTimeoutSec = 60;
 constexpr int kWelcomeResponseTimeoutSec = 8;
 constexpr float kKwsThreshold = 0.20f;
 constexpr int kMinTriggerIntervalMs = 800;

@@ -9,7 +9,7 @@ const auto kLog = xiaoai_plus::GetLogger("gate");
 }  // namespace
 
 Gate::Gate(std::chrono::milliseconds timeout, Hooks hooks)
-    : timeout_(timeout.count() > 0 ? timeout : std::chrono::seconds(15)), hooks_(std::move(hooks)) {
+    : timeout_(timeout.count() > 0 ? timeout : std::chrono::seconds(60)), hooks_(std::move(hooks)) {
   timeout_thread_ = std::thread([this]() { TimeoutLoop(); });
 }
 
