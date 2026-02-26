@@ -25,6 +25,5 @@ cp config.ini.example config.ini
 | `make build` | 构建 Docker 工具链镜像 |
 | `make build-sherpa-static` | 从源码编译 sherpa-onnx + onnxruntime 静态库 |
 | `make compile` | 交叉编译 `xiaoai_plus_speaker`（全静态链接） |
-| CI 发布 | 由 CI 负责打包与发布发行产物 |
 
 仅依赖设备系统库：libstdc++, libc, libm, libgcc_s。
