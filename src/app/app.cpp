@@ -2,9 +2,12 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cctype>
 #include <cstdint>
 #include <cstdlib>
 #include <cmath>
+#include <fstream>
+#include <stdexcept>
 #include <thread>
 
 #include "common/log.hpp"
@@ -107,6 +110,52 @@ float ComputeUplinkGainWhileAiSpeaking(const EchoStats& stats) {
   return has_near_end_speech ? 0.55f : 0.18f;
 }
 
+std::string TrimSpace(std::string s) {
+  auto not_space = [](unsigned char c) { return !std::isspace(c); };
+  s.erase(s.begin(), std::find_if(s.begin(), s.end(), not_space));
+  s.erase(std::find_if(s.rbegin(), s.rend(), not_space).base(), s.end());
+  return s;
+}
+
+std::vector<std::string> LoadWakeupKeywords(const std::string& keywords_file) {
+  std::ifstream in(keywords_file);
+  if (!in.is_open()) {
+    throw std::runtime_error("failed to open wakeup.keywords_file: " + keywords_file);
+  }
+
+  std::vector<std::string> keywords;
+  std::string line;
+  int lineno = 0;
+  while (std::getline(in, line)) {
+    ++lineno;
+    line = TrimSpace(std::move(line));
+    if (line.empty() || line.front() == '#' || line.front() == ';') {
+      continue;
+    }
+
+    const auto at = line.rfind('@');
+    if (at == std::string::npos) {
+      throw std::runtime_error("invalid wakeup.keywords_file line " + std::to_string(lineno) +
+                               ": missing '@' label");
+    }
+    auto keyword = TrimSpace(line.substr(at + 1));
+    if (keyword.empty()) {
+      throw std::runtime_error("invalid wakeup.keywords_file line " + std::to_string(lineno) +
+                               ": empty keyword label");
+    }
+    keywords.push_back(std::move(keyword));
+  }
+
+  std::sort(keywords.begin(), keywords.end());
+  keywords.erase(std::unique(keywords.begin(), keywords.end()), keywords.end());
+  if (keywords.empty()) {
+    throw std::runtime_error("wakeup.keywords_file has no valid keyword label: " +
+                             keywords_file);
+  }
+
+  return keywords;
+}
+
 }  // namespace
 
 App::App(config::Config cfg) : cfg_(std::move(cfg)) {
@@ -136,8 +185,11 @@ App::App(config::Config cfg) : cfg_(std::move(cfg)) {
 
   gate_ = std::make_unique<wakeup::Gate>(std::chrono::seconds(kWakeupTimeoutSec), hooks);
 
+  auto wakeup_keywords = LoadWakeupKeywords(cfg_.wakeup.keywords_file);
+  kLog->info("loaded {} wakeup keyword labels from '{}'", wakeup_keywords.size(),
+             cfg_.wakeup.keywords_file);
   trigger_ = std::make_unique<wakeup::Trigger>(
-      std::vector<std::string>{"豆包同学"},
+      std::move(wakeup_keywords),
       [this](const std::string& keyword) {
         return gate_->TryWakeup(keyword);
       });
