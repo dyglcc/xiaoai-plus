@@ -196,7 +196,6 @@ std::vector<uint8_t> AecWebrtc::ProcessCaptureStream(const uint8_t* pcm, size_t 
       continue;
     }
 
-    impl_->capture_out_i16.reserve(impl_->capture_out_i16.size() + frame_samples);
     for (float sample : impl_->capture_out) {
       float clamped = std::max(-1.0f, std::min(1.0f, sample));
       impl_->capture_out_i16.push_back(static_cast<int16_t>(clamped * 32767.0f));
